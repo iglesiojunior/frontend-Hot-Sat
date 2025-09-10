@@ -1,88 +1,49 @@
+// hooks/use-production-data.ts
 "use client"
 
-import { useState, useCallback } from "react"
-import { ProductionAPI } from "../services/api"
-
-export interface ProductAnalysis {
-  analisePorEtapa: Array<{
-    etapaId: number
-    nomeEtapa: string
-    duracaoEtapa: number
-    tempoDeOcio: any
-  }>
-  ocioTotalSegundos: number
-}
+import { useState, useEffect, useCallback } from "react"
+import { ProductionAPI, ProductionLine, ProductionMetrics, FailureRecord } from "../services/api"
 
 export function useProductionData() {
+  const [lines, setLines] = useState<ProductionLine[]>([])
+  const [metrics, setMetrics] = useState<ProductionMetrics | null>(null)
+  const [failures, setFailures] = useState<FailureRecord[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const getProductAnalysis = useCallback(async (productId: string): Promise<ProductAnalysis | null> => {
+  const fetchData = useCallback(async () => {
     setIsLoading(true)
     setError(null)
-
+    
     try {
-      const analysis = await ProductionAPI.getProductAnalysis(productId)
-      return analysis
+      // Faz todas as requisições em paralelo
+      const [linesData, metricsData, failuresData] = await Promise.all([
+        ProductionAPI.getProductionLines(),
+        ProductionAPI.getProductionMetrics(),
+        ProductionAPI.getFailureRecords(),
+      ])
+      
+      setLines(linesData)
+      setMetrics(metricsData)
+      setFailures(failuresData)
     } catch (err) {
-      setError("Erro ao buscar análise do produto")
-      return null
+      setError(err instanceof Error ? err.message : "Erro desconhecido")
     } finally {
       setIsLoading(false)
     }
   }, [])
 
-  const processProductionEvent = useCallback(async (tipo: "start" | "stop", etapa: number, linhaId: number) => {
-    setIsLoading(true)
-    setError(null)
-
-    try {
-      const result = await ProductionAPI.processEvent(tipo, etapa, linhaId)
-      return result
-    } catch (err) {
-      setError("Erro ao processar evento de produção")
-      return null
-    } finally {
-      setIsLoading(false)
-    }
-  }, [])
-
-  const associateSerialNumber = useCallback(async (numeroSerie: string) => {
-    setIsLoading(true)
-    setError(null)
-
-    try {
-      const result = await ProductionAPI.associateSerialNumber(numeroSerie)
-      return result
-    } catch (err) {
-      setError("Erro ao associar número de série")
-      return null
-    } finally {
-      setIsLoading(false)
-    }
-  }, [])
-
-  const setDailyProductionGoal = useCallback(async (lineId: string, goal: number) => {
-    setIsLoading(true)
-    setError(null)
-
-    try {
-      const result = await ProductionAPI.setDailyProductionGoal(lineId, goal)
-      return result
-    } catch (err) {
-      setError("Erro ao definir meta diária")
-      return null
-    } finally {
-      setIsLoading(false)
-    }
-  }, [])
+  // Carrega os dados quando o hook é montado
+  useEffect(() => {
+    fetchData()
+  }, [fetchData])
 
   return {
+    lines,
+    metrics,
+    failures,
     isLoading,
     error,
-    getProductAnalysis,
-    processProductionEvent,
-    associateSerialNumber,
-    setDailyProductionGoal,
+    fetchData,
   }
 }

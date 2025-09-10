@@ -1,3 +1,4 @@
+// app/page.tsx
 "use client"
 
 import { useState } from "react"
@@ -8,266 +9,20 @@ import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Progress } from "@/components/ui/progress"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Clock, Target, TrendingUp, Factory, Monitor, AlertTriangle, Loader2, CheckCircle, XCircle } from "lucide-react"
+import { Clock, Target, TrendingUp, Factory, Monitor, AlertTriangle, Loader2, CheckCircle, XCircle, RefreshCw } from "lucide-react"
 import { Toaster } from "@/components/ui/toaster"
 import { EnhancedProductRow } from "@/components/enhanced-product-row"
 import { useProductionData } from "@/hooks/use-production-data"
 import { useToast } from "@/hooks/use-toast"
+import { ProductionAPI } from "@/services/api"
 
-// Dados mockados para demonstração
-const productionDataLinha1 = {
-  dailyProduction: 127,
-  dailyTarget: 150,
-  products: [
-    {
-      barcode: "", // Vazio pois não está concluído
-      serialNumber: "1209F25A16806100",
-      model: "MOD:20RT COMPACT BR",
-      fabrication: "FAB:05/2025",
-      currentStage: 3,
-      nextStage: 4,
-      stageTimes: [1703145600000, 1703148300000, 1703150980000, 0, 0],
-      totalActiveTime: 1703150980000 - 1703145600000,
-      idleTime: 900000,
-    },
-    {
-      barcode: "1209F25A16806101", // Mostrado pois está concluído
-      serialNumber: "1209F25A16806101",
-      model: "MOD:20RT COMPACT BR",
-      fabrication: "FAB:05/2025",
-      currentStage: 5,
-      nextStage: null,
-      stageTimes: [1703142000000, 1703144100000, 1703146200000, 1703147700000, 1703148780000],
-      totalActiveTime: 1703148780000 - 1703142000000,
-      idleTime: 1320000,
-    },
-    {
-      barcode: "",
-      serialNumber: "1209F25A16806102",
-      model: "MOD:20RT COMPACT BR",
-      fabrication: "FAB:05/2025",
-      currentStage: 2,
-      nextStage: 3,
-      stageTimes: [1703149200000, 1703150940000, 0, 0, 0],
-      totalActiveTime: 1703150940000 - 1703149200000,
-      idleTime: 480000,
-    },
-    {
-      barcode: "",
-      serialNumber: "1209F25A16806103",
-      model: "MOD:20RT COMPACT BR",
-      fabrication: "FAB:05/2025",
-      currentStage: 4,
-      nextStage: 5,
-      stageTimes: [1703143800000, 1703145660000, 1703147640000, 1703149260000, 0],
-      totalActiveTime: 1703149260000 - 1703143800000,
-      idleTime: 1080000,
-    },
-    {
-      barcode: "",
-      serialNumber: "1209F25A16806104",
-      model: "MOD:20RT COMPACT BR",
-      fabrication: "FAB:05/2025",
-      currentStage: 1,
-      nextStage: 2,
-      stageTimes: [1703151200000, 0, 0, 0, 0],
-      totalActiveTime: Date.now() - 1703151200000,
-      idleTime: 180000,
-    },
-  ],
-}
-
-const productionDataLinha2 = {
-  dailyProduction: 110,
-  dailyTarget: 140,
-  products: [
-    {
-      barcode: "",
-      serialNumber: "1209F25A16806200",
-      model: "MOD:30RT STANDARD BR",
-      fabrication: "FAB:06/2025",
-      currentStage: 2,
-      nextStage: 3,
-      stageTimes: [1703146000000, 1703149000000, 0, 0, 0],
-      totalActiveTime: 1703149000000 - 1703146000000,
-      idleTime: 600000,
-    },
-    {
-      barcode: "1209F25A16806201",
-      serialNumber: "1209F25A16806201",
-      model: "MOD:30RT STANDARD BR",
-      fabrication: "FAB:06/2025",
-      currentStage: 5,
-      nextStage: null,
-      stageTimes: [1703142500000, 1703144500000, 1703146500000, 1703148000000, 1703149000000],
-      totalActiveTime: 1703149000000 - 1703142500000,
-      idleTime: 1400000,
-    },
-    {
-      barcode: "",
-      serialNumber: "1209F25A16806202",
-      model: "MOD:30RT STANDARD BR",
-      fabrication: "FAB:06/2025",
-      currentStage: 1,
-      nextStage: 2,
-      stageTimes: [1703150000000, 0, 0, 0, 0],
-      totalActiveTime: Date.now() - 1703150000000,
-      idleTime: 300000,
-    },
-  ],
-}
-
-const productionDataLinha3 = {
-  dailyProduction: 95,
-  dailyTarget: 120,
-  products: [
-    {
-      barcode: "",
-      serialNumber: "1209F25A16806300",
-      model: "MOD:40RT PREMIUM BR",
-      fabrication: "FAB:07/2025",
-      currentStage: 4,
-      nextStage: 5,
-      stageTimes: [1703144000000, 1703146000000, 1703148000000, 1703150000000, 0],
-      totalActiveTime: 1703150000000 - 1703144000000,
-      idleTime: 1100000,
-    },
-    {
-      barcode: "1209F25A16806301",
-      serialNumber: "1209F25A16806301",
-      model: "MOD:40RT PREMIUM BR",
-      fabrication: "FAB:07/2025",
-      currentStage: 5,
-      nextStage: null,
-      stageTimes: [1703143000000, 1703145000000, 1703147000000, 1703149000000, 1703151000000],
-      totalActiveTime: 1703151000000 - 1703143000000,
-      idleTime: 1500000,
-    },
-  ],
-}
-
-const productionDataLinha4 = {
-  dailyProduction: 135,
-  dailyTarget: 160,
-  products: [
-    {
-      barcode: "",
-      serialNumber: "1209F25A16806400",
-      model: "MOD:25RT ECO BR",
-      fabrication: "FAB:08/2025",
-      currentStage: 3,
-      nextStage: 4,
-      stageTimes: [1703147000000, 1703150000000, 1703152000000, 0, 0],
-      totalActiveTime: 1703152000000 - 1703147000000,
-      idleTime: 800000,
-    },
-    {
-      barcode: "",
-      serialNumber: "1209F25A16806401",
-      model: "MOD:25RT ECO BR",
-      fabrication: "FAB:08/2025",
-      currentStage: 1,
-      nextStage: 2,
-      stageTimes: [1703151000000, 0, 0, 0, 0],
-      totalActiveTime: Date.now() - 1703151000000,
-      idleTime: 200000,
-    },
-  ],
-}
-
-const productionDataLinha5 = {
-  dailyProduction: 118,
-  dailyTarget: 155,
-  products: [
-    {
-      barcode: "1209F25A16806500",
-      serialNumber: "1209F25A16806500",
-      model: "MOD:35RT INDUSTRIAL BR",
-      fabrication: "FAB:09/2025",
-      currentStage: 5,
-      nextStage: null,
-      stageTimes: [1703145000000, 1703147000000, 1703149000000, 1703151000000, 1703153000000],
-      totalActiveTime: 1703153000000 - 1703145000000,
-      idleTime: 1200000,
-    },
-    {
-      barcode: "",
-      serialNumber: "1209F25A16806501",
-      model: "MOD:35RT INDUSTRIAL BR",
-      fabrication: "FAB:09/2025",
-      currentStage: 2,
-      nextStage: 3,
-      stageTimes: [1703148000000, 1703150000000, 0, 0, 0],
-      totalActiveTime: 1703150000000 - 1703148000000,
-      idleTime: 700000,
-    },
-  ],
-}
-
-// Dados de falhas/paralizações mockados
-const failureData = [
-  {
-    id: 1,
-    line: "Linha 1",
-    stage: 2,
-    startTime: 1703145000000,
-    endTime: 1703146800000, // 30 min depois
-    duration: 1800000, // 30 minutos
-    status: "Concluído",
-  },
-  {
-    id: 2,
-    line: "Linha 3",
-    stage: 4,
-    startTime: 1703147200000,
-    endTime: 1703148400000, // 20 min depois
-    duration: 1200000, // 20 minutos
-    status: "Concluído",
-  },
-  {
-    id: 3,
-    line: "Linha 2",
-    stage: 1,
-    startTime: 1703149000000,
-    endTime: null, // Ainda em aberto
-    duration: Date.now() - 1703149000000,
-    status: "Aberto",
-  },
-  {
-    id: 4,
-    line: "Linha 5",
-    stage: 3,
-    startTime: 1703150000000,
-    endTime: 1703151500000, // 25 min depois
-    duration: 1500000, // 25 minutos
-    status: "Concluído",
-  },
-  {
-    id: 5,
-    line: "Linha 4",
-    stage: 2,
-    startTime: 1703151800000,
-    endTime: 1703152600000, // 13 min depois
-    duration: 800000, // 13 minutos
-    status: "Concluído",
-  },
-  {
-    id: 6,
-    line: "Linha 1",
-    stage: 5,
-    startTime: 1703152000000,
-    endTime: null, // Ainda em aberto
-    duration: Date.now() - 1703152000000,
-    status: "Aberto",
-  },
-]
-
+// Mantenha os dados de modelos e cores, eles não são mockados
 const lineModels = {
-  linha1: { model: "20RT COMPACT BR", description: "Climatizador Compacto 20.000 BTU/h" },
-  linha2: { model: "30RT STANDARD BR", description: "Climatizador Standard 30.000 BTU/h" },
-  linha3: { model: "40RT PREMIUM BR", description: "Climatizador Premium 40.000 BTU/h" },
-  linha4: { model: "25RT ECO BR", description: "Climatizador Eco 25.000 BTU/h" },
-  linha5: { model: "35RT INDUSTRIAL BR", description: "Climatizador Industrial 35.000 BTU/h" },
+  "Linha 1": { model: "20RT COMPACT BR", description: "Climatizador Compacto 20.000 BTU/h" },
+  "Linha 2": { model: "30RT STANDARD BR", description: "Climatizador Standard 30.000 BTU/h" },
+  "Linha 3": { model: "40RT PREMIUM BR", description: "Climatizador Premium 40.000 BTU/h" },
+  "Linha 4": { model: "25RT ECO BR", description: "Climatizador Eco 25.000 BTU/h" },
+  "Linha 5": { model: "35RT INDUSTRIAL BR", description: "Climatizador Industrial 35.000 BTU/h" },
 }
 
 const lineColors = {
@@ -308,6 +63,7 @@ const lineColors = {
   },
 }
 
+// Formata um timestamp para uma string de data
 const formatTimestamp = (timestamp: number) => {
   if (timestamp === 0) return "-"
   return new Date(timestamp).toLocaleString("pt-BR", {
@@ -319,6 +75,7 @@ const formatTimestamp = (timestamp: number) => {
   })
 }
 
+// Formata uma duração em milissegundos para uma string legível
 const formatDuration = (milliseconds: number) => {
   const hours = Math.floor(milliseconds / 3600000)
   const minutes = Math.floor((milliseconds % 3600000) / 60000)
@@ -336,7 +93,7 @@ export default function ProductionMonitoring() {
   const [isSavingGoal, setIsSavingGoal] = useState<Record<string, boolean>>({})
   const [saveError, setSaveError] = useState<Record<string, string | null>>({})
   const [saveSuccess, setSaveSuccess] = useState<Record<string, boolean>>({})
-  const { setDailyProductionGoal } = useProductionData()
+  const { lines, metrics, failures, isLoading, error, fetchData } = useProductionData()
   const { toast } = useToast()
 
   const getStageStatus = (currentStage: number, stage: number) => {
@@ -356,36 +113,15 @@ export default function ProductionMonitoring() {
     }
   }
 
-  const getProductionData = (line: string) => {
-    switch (line) {
-      case "linha1":
-        return productionDataLinha1
-      case "linha2":
-        return productionDataLinha2
-      case "linha3":
-        return productionDataLinha3
-      case "linha4":
-        return productionDataLinha4
-      case "linha5":
-        return productionDataLinha5
-      default:
-        return productionDataLinha1
-    }
-  }
-
-  const getAllProductionData = () => {
-    return {
-      linha1: productionDataLinha1,
-      linha2: productionDataLinha2,
-      linha3: productionDataLinha3,
-      linha4: productionDataLinha4,
-      linha5: productionDataLinha5,
-    }
+  // A partir de agora, buscamos os dados do estado `lines`
+  const getProductionData = (lineKey: string) => {
+    const lineId = parseInt(lineKey.replace("linha", ""), 10)
+    return lines.find(l => l.id === lineId.toString())
   }
 
   // Calcular tempo total de paralização por linha
   const getDowntimeByLine = () => {
-    const downtime = {
+    const downtime: Record<string, number> = {
       "Linha 1": 0,
       "Linha 2": 0,
       "Linha 3": 0,
@@ -393,21 +129,24 @@ export default function ProductionMonitoring() {
       "Linha 5": 0,
     }
 
-    failureData.forEach((failure) => {
-      if (failure.status === "Concluído") {
-        downtime[failure.line] += failure.duration
-      } else {
-        // Para falhas em aberto, calcular tempo até agora
-        downtime[failure.line] += Date.now() - failure.startTime
-      }
-    })
+    if (failures) {
+      failures.forEach((failure) => {
+        const lineName = lines.find(l => l.id === failure.lineId)?.name || "Linha Desconhecida";
+        if (failure.status === "resolved") {
+          downtime[lineName] += failure.duration;
+        } else {
+          downtime[lineName] += Date.now() - new Date(failure.startTime).getTime();
+        }
+      })
+    }
 
-    return downtime
+    return downtime;
   }
 
   // Função para salvar meta diária de uma linha
-  const handleSaveDailyGoal = async (line: string) => {
-    const goalValue = dailyGoals[line]
+  const handleSaveDailyGoal = async (lineKey: string) => {
+    const lineId = parseInt(lineKey.replace("linha", ""), 10)
+    const goalValue = dailyGoals[lineKey]
     if (!goalValue || !goalValue.trim()) {
       toast({
         title: "Erro",
@@ -427,25 +166,24 @@ export default function ProductionMonitoring() {
       return
     }
 
-    // per-line saving state
-    setIsSavingGoal(prev => ({ ...prev, [line]: true }))
-    setSaveError(prev => ({ ...prev, [line]: null }))
-    setSaveSuccess(prev => ({ ...prev, [line]: false }))
+    setIsSavingGoal(prev => ({ ...prev, [lineKey]: true }))
+    setSaveError(prev => ({ ...prev, [lineKey]: null }))
+    setSaveSuccess(prev => ({ ...prev, [lineKey]: false }))
 
     try {
-      const result = await setDailyProductionGoal(line, goalNumber)
+      const result = await ProductionAPI.setDailyProductionGoal(lineId, goalNumber)
       if (result) {
         toast({
           title: "Meta Salva",
-          description: `Meta diária de ${goalNumber} unidades definida para ${line}`,
+          description: `Meta diária de ${goalNumber} unidades definida para ${lineKey}`,
         })
-        // Limpa o campo após salvar
-        setDailyGoals(prev => ({ ...prev, [line]: "" }))
-        setSaveSuccess(prev => ({ ...prev, [line]: true }))
-        // limpa o estado de sucesso depois de um tempo
-        setTimeout(() => setSaveSuccess(prev => ({ ...prev, [line]: false })), 3000)
+        setDailyGoals(prev => ({ ...prev, [lineKey]: "" }))
+        setSaveSuccess(prev => ({ ...prev, [lineKey]: true }))
+        setTimeout(() => setSaveSuccess(prev => ({ ...prev, [lineKey]: false })), 3000)
+        // Após salvar, recarregue os dados para refletir a nova meta
+        fetchData();
       } else {
-        setSaveError(prev => ({ ...prev, [line]: "Resposta negativa da API" }))
+        setSaveError(prev => ({ ...prev, [lineKey]: "Resposta negativa da API" }))
         toast({
           title: "Erro",
           description: "Falha ao salvar meta diária",
@@ -454,22 +192,19 @@ export default function ProductionMonitoring() {
       }
     } catch (error: any) {
       const msg = error?.message || "Erro desconhecido"
-      setSaveError(prev => ({ ...prev, [line]: msg }))
+      setSaveError(prev => ({ ...prev, [lineKey]: msg }))
       toast({
         title: "Erro",
-        description: "Falha ao salvar meta diária",
+        description: `Falha ao salvar meta diária: ${msg}`,
         variant: "destructive",
       })
     } finally {
-      setIsSavingGoal(prev => ({ ...prev, [line]: false }))
+      setIsSavingGoal(prev => ({ ...prev, [lineKey]: false }))
     }
   }
 
-  const productionData = getProductionData(activeLine)
-  const completionPercentage = Math.round((productionData.dailyProduction / productionData.dailyTarget) * 100)
-
   const LineCard = ({ lineKey, data, colors }) => {
-    const percentage = Math.round((data.dailyProduction / data.dailyTarget) * 100)
+    const percentage = data.targetProduction > 0 ? Math.round((data.currentProduction / data.targetProduction) * 100) : 0
     const productsInProduction = data.products.filter((p) => p.currentStage < 5).length
     const productsCompleted = data.products.filter((p) => p.currentStage === 5).length
 
@@ -488,11 +223,11 @@ export default function ProductionMonitoring() {
         <CardContent className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div className="text-center">
-              <div className={`text-4xl font-bold ${colors.text}`}>{data.dailyProduction}</div>
+              <div className={`text-4xl font-bold ${colors.text}`}>{data.currentProduction}</div>
               <div className="text-sm text-gray-600">Produzidos</div>
             </div>
             <div className="text-center">
-              <div className={`text-4xl font-bold ${colors.text}`}>{data.dailyTarget}</div>
+              <div className={`text-4xl font-bold ${colors.text}`}>{data.targetProduction}</div>
               <div className="text-sm text-gray-600">Meta</div>
             </div>
           </div>
@@ -519,6 +254,32 @@ export default function ProductionMonitoring() {
     )
   }
 
+  if (isLoading && lines.length === 0) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4">
+        <Loader2 className="h-10 w-10 animate-spin text-blue-500" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4">
+        <Card className="border-red-200 bg-red-50">
+          <CardContent className="p-6 text-center">
+            <AlertTriangle className="h-12 w-12 text-red-500 mx-auto mb-4" />
+            <h2 className="text-xl font-semibold text-red-700 mb-2">Erro ao carregar dados</h2>
+            <p className="text-red-600 mb-4">{error}</p>
+            <Button onClick={fetchData} variant="outline">
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Tentar Novamente
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 p-4">
       <div className="max-w-7xl mx-auto">
@@ -537,91 +298,63 @@ export default function ProductionMonitoring() {
               <AlertTriangle className="h-4 w-4" />
               Falhas
             </TabsTrigger>
-            <TabsTrigger value="linha1" className="flex items-center gap-2">
-              <Factory className="h-4 w-4" />
-              Linha 1
-            </TabsTrigger>
-            <TabsTrigger value="linha2" className="flex items-center gap-2">
-              <Factory className="h-4 w-4" />
-              Linha 2
-            </TabsTrigger>
-            <TabsTrigger value="linha3" className="flex items-center gap-2">
-              <Factory className="h-4 w-4" />
-              Linha 3
-            </TabsTrigger>
-            <TabsTrigger value="linha4" className="flex items-center gap-2">
-              <Factory className="h-4 w-4" />
-              Linha 4
-            </TabsTrigger>
-            <TabsTrigger value="linha5" className="flex items-center gap-2">
-              <Factory className="h-4 w-4" />
-              Linha 5
-            </TabsTrigger>
+            {lines.map((line) => (
+              <TabsTrigger key={line.id} value={`linha${line.id}`} className="flex items-center gap-2">
+                <Factory className="h-4 w-4" />
+                {line.name}
+              </TabsTrigger>
+            ))}
           </TabsList>
 
           <TabsContent value="geral" className="space-y-6">
-            {/* Resumo geral */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-              <Card className="bg-gradient-to-r from-blue-500 to-blue-600 text-white">
-                <CardContent className="p-6 text-center">
-                  <div className="text-4xl font-bold mb-2">
-                    {Object.values(getAllProductionData()).reduce((acc, line) => acc + line.dailyProduction, 0)}
-                  </div>
-                  <div className="text-lg">Total Produzido</div>
-                </CardContent>
-              </Card>
-
-              <Card className="bg-gradient-to-r from-green-500 to-green-600 text-white">
-                <CardContent className="p-6 text-center">
-                  <div className="text-4xl font-bold mb-2">
-                    {Object.values(getAllProductionData()).reduce((acc, line) => acc + line.dailyTarget, 0)}
-                  </div>
-                  <div className="text-lg">Meta Total</div>
-                </CardContent>
-              </Card>
-
-              <Card className="bg-gradient-to-r from-orange-500 to-orange-600 text-white">
-                <CardContent className="p-6 text-center">
-                  <div className="text-4xl font-bold mb-2">
-                    {Math.round(
-                      (Object.values(getAllProductionData()).reduce((acc, line) => acc + line.dailyProduction, 0) /
-                        Object.values(getAllProductionData()).reduce((acc, line) => acc + line.dailyTarget, 0)) *
-                        100,
-                    )}
-                    %
-                  </div>
-                  <div className="text-lg">Eficiência Geral</div>
-                </CardContent>
-              </Card>
-
-              <Card className="bg-gradient-to-r from-purple-500 to-purple-600 text-white">
-                <CardContent className="p-6 text-center">
-                  <div className="text-4xl font-bold mb-2">5</div>
-                  <div className="text-lg">Linhas Ativas</div>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Cards das linhas */}
+            {metrics && (
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+                <Card className="bg-gradient-to-r from-blue-500 to-blue-600 text-white">
+                  <CardContent className="p-6 text-center">
+                    <div className="text-4xl font-bold mb-2">{metrics.totalProduced}</div>
+                    <div className="text-lg">Total Produzido</div>
+                  </CardContent>
+                </Card>
+                <Card className="bg-gradient-to-r from-green-500 to-green-600 text-white">
+                  <CardContent className="p-6 text-center">
+                    <div className="text-4xl font-bold mb-2">{metrics.totalTarget}</div>
+                    <div className="text-lg">Meta Total</div>
+                  </CardContent>
+                </Card>
+                <Card className="bg-gradient-to-r from-orange-500 to-orange-600 text-white">
+                  <CardContent className="p-6 text-center">
+                    <div className="text-4xl font-bold mb-2">{metrics.overallEfficiency}%</div>
+                    <div className="text-lg">Eficiência Geral</div>
+                  </CardContent>
+                </Card>
+                <Card className="bg-gradient-to-r from-purple-500 to-purple-600 text-white">
+                  <CardContent className="p-6 text-center">
+                    <div className="text-4xl font-bold mb-2">{metrics.activeLines}</div>
+                    <div className="text-lg">Linhas Ativas</div>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {Object.entries(getAllProductionData()).map(([lineKey, data]) => (
+              {lines.map((line) => (
                 <LineCard
-                  key={lineKey}
-                  lineKey={lineKey}
-                  data={data}
-                  colors={lineColors[lineKey.replace("linha", "Linha ")]}
+                  key={line.id}
+                  lineKey={`linha${line.id}`}
+                  data={line}
+                  colors={lineColors[line.name]}
                 />
               ))}
             </div>
           </TabsContent>
 
           <TabsContent value="falhas" className="space-y-6">
-            {/* Cards de resumo de tempo de paralização por linha */}
             <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
               {Object.entries(getDowntimeByLine()).map(([line, downtime]) => {
-                const colors = lineColors[line]
-                const openFailures = failureData.filter((f) => f.line === line && f.status === "Aberto").length
-
+                const colors = lineColors[line] || { primary: "bg-gray-600", secondary: "bg-gray-100", text: "text-gray-600", border: "border-gray-600" }
+                const openFailures = failures.filter((f) => {
+                  const failureLine = lines.find(l => l.id === f.lineId)?.name;
+                  return failureLine === line && f.status === "open";
+                }).length
                 return (
                   <Card key={line} className={`${colors.secondary} border-2 ${colors.border}`}>
                     <CardHeader className="pb-2">
@@ -643,8 +376,6 @@ export default function ProductionMonitoring() {
                 )
               })}
             </div>
-
-            {/* Tabela de falhas */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -666,39 +397,40 @@ export default function ProductionMonitoring() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {failureData
-                      .sort((a, b) => b.startTime - a.startTime) // Ordenar por mais recente
+                    {failures
+                      .sort((a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime())
                       .map((failure) => {
-                        const colors = lineColors[failure.line]
+                        const lineName = lines.find(l => l.id === failure.lineId)?.name || "Linha Desconhecida";
+                        const colors = lineColors[lineName] || { primary: "bg-gray-600", text: "text-gray-600" };
+                        const startTimeMs = new Date(failure.startTime).getTime();
+                        const endTimeMs = failure.endTime ? new Date(failure.endTime).getTime() : null;
+                        const duration = failure.status === "open" ? Date.now() - startTimeMs : (endTimeMs || 0) - startTimeMs;
+
                         return (
                           <TableRow key={failure.id}>
                             <TableCell>
-                              <Badge className={`${colors.primary} text-white`}>{failure.line}</Badge>
+                              <Badge className={`${colors.primary} text-white`}>{lineName}</Badge>
                             </TableCell>
                             <TableCell>
                               <Badge variant="outline">Etapa {failure.stage}</Badge>
                             </TableCell>
                             <TableCell>
-                              <span className="text-sm font-mono">{formatTimestamp(failure.startTime)}</span>
+                              <span className="text-sm font-mono">{formatTimestamp(startTimeMs)}</span>
                             </TableCell>
                             <TableCell>
                               <span className="text-sm font-mono">
-                                {failure.endTime ? formatTimestamp(failure.endTime) : "-"}
+                                {endTimeMs ? formatTimestamp(endTimeMs) : "-"}
                               </span>
                             </TableCell>
                             <TableCell>
-                              <span className="font-semibold">
-                                {failure.status === "Aberto"
-                                  ? formatDuration(Date.now() - failure.startTime)
-                                  : formatDuration(failure.duration)}
-                              </span>
+                              <span className="font-semibold">{formatDuration(duration)}</span>
                             </TableCell>
                             <TableCell>
                               <Badge
-                                variant={failure.status === "Aberto" ? "destructive" : "default"}
-                                className={failure.status === "Aberto" ? "animate-pulse" : ""}
+                                variant={failure.status === "open" ? "destructive" : "default"}
+                                className={failure.status === "open" ? "animate-pulse" : ""}
                               >
-                                {failure.status}
+                                {failure.status === "open" ? "Aberto" : "Concluído"}
                               </Badge>
                             </TableCell>
                           </TableRow>
@@ -710,137 +442,132 @@ export default function ProductionMonitoring() {
             </Card>
           </TabsContent>
 
-          {/* Abas individuais das linhas */}
-          {["linha1", "linha2", "linha3", "linha4", "linha5"].map((line) => (
-            <TabsContent key={line} value={line} className="space-y-6">
-              {/* Cards de métricas principais */}
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                <Card className="border-l-4 border-l-blue-500">
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-sm font-medium text-gray-600 flex items-center gap-2">
-                      <TrendingUp className="h-4 w-4" />
-                      Produção Atual
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-4xl font-bold text-blue-600 mb-2">
-                      {getProductionData(line).dailyProduction}
-                    </div>
-                    <p className="text-sm text-gray-600">unidades produzidas hoje</p>
-                  </CardContent>
-                </Card>
+          {lines.map((line) => {
+            const lineKey = `linha${line.id}`;
+            const lineData = getProductionData(lineKey);
+            const lineColorsData = lineColors[line.name];
+            
+            if (!lineData) return null;
 
-                <Card className="border-l-4 border-l-green-500">
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-sm font-medium text-gray-600 flex items-center gap-2">
-                      <Target className="h-4 w-4" />
-                      Meta Diária
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-4xl font-bold text-green-600 mb-2">{getProductionData(line).dailyTarget}</div>
-                    <p className="text-sm text-gray-600">unidades planejadas</p>
-                    
-<div className="mt-3 flex items-center gap-2">
-                      <Input
-                        type="number"
-                        placeholder="Nova meta"
-                        value={dailyGoals[line] || ""}
-                        onChange={(e) => setDailyGoals(prev => ({ ...prev, [line]: e.target.value }))}
-                        className="w-24 h-8 text-sm"
-                        min="1"
-                        aria-label={`Nova meta para ${line}`}
-                      />
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleSaveDailyGoal(line)}
-                        disabled={!dailyGoals[line] || isSavingGoal[line]}
-                        className="h-8 text-xs flex items-center gap-2"
-                      >
-                        {isSavingGoal[line] ? <Loader2 className="animate-spin h-4 w-4" /> : "Salvar"}
-                      </Button>
-                      {/* feedback icons */}
-                      {saveSuccess[line] && <CheckCircle className="h-4 w-4 text-green-600" />}
-                      {saveError[line] && <XCircle className="h-4 w-4 text-red-600" />}
-                    </div>
-                  </CardContent>
-                </Card>
+            const completionPercentage = lineData.targetProduction > 0 ? Math.round((lineData.currentProduction / lineData.targetProduction) * 100) : 0;
+            const isLineSavingGoal = isSavingGoal[lineKey];
+            const lineSaveSuccess = saveSuccess[lineKey];
+            const lineSaveError = saveError[lineKey];
 
-                <Card className="border-l-4 border-l-orange-500">
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-sm font-medium text-gray-600 flex items-center gap-2">
-                      <Clock className="h-4 w-4" />
-                      Cumprimento da Meta
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-4xl font-bold text-orange-600 mb-2">
-                      {Math.round(
-                        (getProductionData(line).dailyProduction / getProductionData(line).dailyTarget) * 100,
-                      )}
-                      %
-                    </div>
-                    <Progress
-                      value={Math.round(
-                        (getProductionData(line).dailyProduction / getProductionData(line).dailyTarget) * 100,
-                      )}
-                      className="mt-2"
-                    />
-                  </CardContent>
-                </Card>
+            return (
+              <TabsContent key={line.id} value={lineKey} className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                  <Card className="border-l-4 border-l-blue-500">
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-sm font-medium text-gray-600 flex items-center gap-2">
+                        <TrendingUp className="h-4 w-4" />
+                        Produção Atual
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-4xl font-bold text-blue-600 mb-2">{lineData.currentProduction}</div>
+                      <p className="text-sm text-gray-600">unidades produzidas hoje</p>
+                    </CardContent>
+                  </Card>
 
-                {/* Card do modelo do dia */}
-                <Card className="border-l-4 border-l-purple-500">
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-sm font-medium text-gray-600 flex items-center gap-2">
-                      <Factory className="h-4 w-4" />
-                      Modelo do Dia
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold text-purple-600 mb-2">{lineModels[line].model}</div>
-                    <p className="text-sm text-gray-600">{lineModels[line].description}</p>
-                  </CardContent>
-                </Card>
-              </div>
-
-              {/* Tabela de produtos em produção */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Produtos em Linha de Produção</CardTitle>
-                  <CardDescription>Status atual dos produtos e tempo por etapa</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <Table>
-                                      <TableHeader>
-                    <TableRow>
-                      <TableHead>Código do Produto</TableHead>
-                      <TableHead>Etapa Atual</TableHead>
-                      <TableHead>Etapa 1</TableHead>
-                      <TableHead>Etapa 2</TableHead>
-                      <TableHead>Etapa 3</TableHead>
-                      <TableHead>Etapa 4</TableHead>
-                      <TableHead>Etapa 5</TableHead>
-                      <TableHead>Status</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                    <TableBody>
-                      {getProductionData(line).products.map((product) => (
-                        <EnhancedProductRow
-                          key={product.serialNumber}
-                          product={product}
-                          getStageStatus={getStageStatus}
-                          getStageColor={getStageColor}
-                          formatTimestamp={formatTimestamp}
+                  <Card className="border-l-4 border-l-green-500">
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-sm font-medium text-gray-600 flex items-center gap-2">
+                        <Target className="h-4 w-4" />
+                        Meta Diária
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-4xl font-bold text-green-600 mb-2">{lineData.targetProduction}</div>
+                      <p className="text-sm text-gray-600">unidades planejadas</p>
+                      <div className="mt-3 flex items-center gap-2">
+                        <Input
+                          type="number"
+                          placeholder="Nova meta"
+                          value={dailyGoals[lineKey] || ""}
+                          onChange={(e) => setDailyGoals(prev => ({ ...prev, [lineKey]: e.target.value }))}
+                          className="w-24 h-8 text-sm"
+                          min="1"
+                          aria-label={`Nova meta para ${line.name}`}
                         />
-                      ))}
-                    </TableBody>
-                  </Table>
-                </CardContent>
-              </Card>
-            </TabsContent>
-          ))}
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleSaveDailyGoal(lineKey)}
+                          disabled={!dailyGoals[lineKey] || isLineSavingGoal}
+                          className="h-8 text-xs flex items-center gap-2"
+                        >
+                          {isLineSavingGoal ? <Loader2 className="animate-spin h-4 w-4" /> : "Salvar"}
+                        </Button>
+                        {lineSaveSuccess && <CheckCircle className="h-4 w-4 text-green-600" />}
+                        {lineSaveError && <XCircle className="h-4 w-4 text-red-600" />}
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  <Card className="border-l-4 border-l-orange-500">
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-sm font-medium text-gray-600 flex items-center gap-2">
+                        <Clock className="h-4 w-4" />
+                        Cumprimento da Meta
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-4xl font-bold text-orange-600 mb-2">{completionPercentage}%</div>
+                      <Progress value={completionPercentage} className="mt-2" />
+                    </CardContent>
+                  </Card>
+
+                  <Card className="border-l-4 border-l-purple-500">
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-sm font-medium text-gray-600 flex items-center gap-2">
+                        <Factory className="h-4 w-4" />
+                        Modelo do Dia
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold text-purple-600 mb-2">{lineModels[line.name].model}</div>
+                      <p className="text-sm text-gray-600">{lineModels[line.name].description}</p>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Produtos em Linha de Produção</CardTitle>
+                    <CardDescription>Status atual dos produtos e tempo por etapa</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Código do Produto</TableHead>
+                          <TableHead>Etapa Atual</TableHead>
+                          <TableHead>Etapa 1</TableHead>
+                          <TableHead>Etapa 2</TableHead>
+                          <TableHead>Etapa 3</TableHead>
+                          <TableHead>Etapa 4</TableHead>
+                          <TableHead>Etapa 5</TableHead>
+                          <TableHead>Status</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {lineData.products.map((product) => (
+                          <EnhancedProductRow
+                            key={product.serialNumber}
+                            product={product}
+                            getStageStatus={getStageStatus}
+                            getStageColor={getStageColor}
+                            formatTimestamp={formatTimestamp}
+                          />
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+            );
+          })}
         </Tabs>
       </div>
       <Toaster />

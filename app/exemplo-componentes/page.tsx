@@ -21,7 +21,7 @@ import {
   type ProductionLine, 
   type Product, 
   type FailureRecord 
-} from "@/services/production-api"
+} from "@/services/api"
 import { Plus, AlertTriangle, Settings, RefreshCw, TrendingUp } from "lucide-react"
 
 export default function ExemploComponentesPage() {
