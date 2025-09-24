@@ -14,7 +14,7 @@ import { Toaster } from "@/components/ui/toaster"
 import { EnhancedProductRow } from "@/components/enhanced-product-row"
 import { useProductionData } from "@/hooks/use-production-data"
 import { useToast } from "@/hooks/use-toast"
-import { ProductionAPI } from "@/services/api"
+import { ProductionAPI, ProductionLine } from "@/services/api"
 
 // Mantenha os dados de modelos e cores, eles não são mockados
 const lineModels = {
@@ -25,7 +25,7 @@ const lineModels = {
   "Linha 5": { model: "35RT INDUSTRIAL BR", description: "Climatizador Industrial 35.000 BTU/h" },
 }
 
-const lineColors = {
+const lineColors: { [key: string]: any } = {
   "Linha 1": {
     primary: "bg-blue-600",
     secondary: "bg-blue-100",
@@ -65,7 +65,7 @@ const lineColors = {
 
 // Formata um timestamp para uma string de data
 const formatTimestamp = (timestamp: number) => {
-  if (timestamp === 0) return "-"
+  if (!timestamp || timestamp === 0) return "-"
   return new Date(timestamp).toLocaleString("pt-BR", {
     day: "2-digit",
     month: "2-digit",
@@ -77,6 +77,7 @@ const formatTimestamp = (timestamp: number) => {
 
 // Formata uma duração em milissegundos para uma string legível
 const formatDuration = (milliseconds: number) => {
+  if (isNaN(milliseconds) || milliseconds < 0) return "0m 0s";
   const hours = Math.floor(milliseconds / 3600000)
   const minutes = Math.floor((milliseconds % 3600000) / 60000)
   const seconds = Math.floor((milliseconds % 60000) / 1000)
@@ -91,8 +92,6 @@ export default function ProductionMonitoring() {
   const [activeLine, setActiveLine] = useState("geral")
   const [dailyGoals, setDailyGoals] = useState<Record<string, string>>({})
   const [isSavingGoal, setIsSavingGoal] = useState<Record<string, boolean>>({})
-  const [saveError, setSaveError] = useState<Record<string, string | null>>({})
-  const [saveSuccess, setSaveSuccess] = useState<Record<string, boolean>>({})
   const { lines, metrics, failures, isLoading, error, fetchData } = useProductionData()
   const { toast } = useToast()
 
@@ -112,90 +111,47 @@ export default function ProductionMonitoring() {
         return "bg-gray-300"
     }
   }
-
-  // A partir de agora, buscamos os dados do estado `lines`
-  const getProductionData = (lineKey: string) => {
-    const lineId = parseInt(lineKey.replace("linha", ""), 10)
-    return lines.find(l => l.id === lineId.toString())
-  }
-
-  // Calcular tempo total de paralização por linha
+  
   const getDowntimeByLine = () => {
-    const downtime: Record<string, number> = {
-      "Linha 1": 0,
-      "Linha 2": 0,
-      "Linha 3": 0,
-      "Linha 4": 0,
-      "Linha 5": 0,
-    }
-
+    const downtime: Record<string, number> = { "Linha 1": 0, "Linha 2": 0, "Linha 3": 0, "Linha 4": 0, "Linha 5": 0 };
     if (failures) {
       failures.forEach((failure) => {
-        const lineName = lines.find(l => l.id === failure.lineId)?.name || "Linha Desconhecida";
-        if (failure.status === "resolved") {
-          downtime[lineName] += failure.duration;
-        } else {
-          downtime[lineName] += Date.now() - new Date(failure.startTime).getTime();
+        const lineName = lines.find(l => l.id === failure.lineId)?.name;
+        if (lineName && downtime.hasOwnProperty(lineName)) {
+           downtime[lineName] += failure.duration;
         }
       })
     }
-
     return downtime;
   }
 
-  // Função para salvar meta diária de uma linha
   const handleSaveDailyGoal = async (lineKey: string) => {
     const lineId = parseInt(lineKey.replace("linha", ""), 10)
     const goalValue = dailyGoals[lineKey]
     if (!goalValue || !goalValue.trim()) {
-      toast({
-        title: "Erro",
-        description: "Digite uma meta válida",
-        variant: "destructive",
-      })
+      toast({ title: "Erro", description: "Digite uma meta válida", variant: "destructive" })
       return
     }
 
     const goalNumber = parseInt(goalValue, 10)
     if (isNaN(goalNumber) || goalNumber <= 0) {
-      toast({
-        title: "Erro",
-        description: "A meta deve ser um número positivo",
-        variant: "destructive",
-      })
+      toast({ title: "Erro", description: "A meta deve ser um número positivo", variant: "destructive" })
       return
     }
 
     setIsSavingGoal(prev => ({ ...prev, [lineKey]: true }))
-    setSaveError(prev => ({ ...prev, [lineKey]: null }))
-    setSaveSuccess(prev => ({ ...prev, [lineKey]: false }))
-
     try {
-      const result = await ProductionAPI.setDailyProductionGoal(lineId, goalNumber)
-      if (result) {
-        toast({
-          title: "Meta Salva",
-          description: `Meta diária de ${goalNumber} unidades definida para ${lineKey}`,
-        })
-        setDailyGoals(prev => ({ ...prev, [lineKey]: "" }))
-        setSaveSuccess(prev => ({ ...prev, [lineKey]: true }))
-        setTimeout(() => setSaveSuccess(prev => ({ ...prev, [lineKey]: false })), 3000)
-        // Após salvar, recarregue os dados para refletir a nova meta
-        fetchData();
-      } else {
-        setSaveError(prev => ({ ...prev, [lineKey]: "Resposta negativa da API" }))
-        toast({
-          title: "Erro",
-          description: "Falha ao salvar meta diária",
-          variant: "destructive",
-        })
-      }
+      await ProductionAPI.setDailyProductionGoal(lineId, goalNumber)
+      toast({
+        title: "Meta Salva",
+        description: `Meta diária de ${goalNumber} unidades definida para ${lineKey}`,
+      })
+      setDailyGoals(prev => ({ ...prev, [lineKey]: "" }))
+      fetchData();
     } catch (error: any) {
-      const msg = error?.message || "Erro desconhecido"
-      setSaveError(prev => ({ ...prev, [lineKey]: msg }))
       toast({
         title: "Erro",
-        description: `Falha ao salvar meta diária: ${msg}`,
+        description: error.message || "Falha ao salvar meta diária",
         variant: "destructive",
       })
     } finally {
@@ -203,22 +159,23 @@ export default function ProductionMonitoring() {
     }
   }
 
-  const LineCard = ({ lineKey, data, colors }) => {
-    const percentage = data.targetProduction > 0 ? Math.round((data.currentProduction / data.targetProduction) * 100) : 0
-    const productsInProduction = data.products.filter((p) => p.currentStage < 5).length
-    const productsCompleted = data.products.filter((p) => p.currentStage === 5).length
-
+  const LineCard = ({ data }: { data: ProductionLine }) => {
+    const colors = lineColors[data.name] || {};
+    const percentage = data.targetProduction > 0 ? Math.round((data.currentProduction / data.targetProduction) * 100) : 0;
+    const productsInProduction = data.products.filter(p => p.status === 'in_production').length;
+    const productsCompleted = data.products.filter(p => p.status === 'completed').length;
+  
     return (
       <Card className={`${colors.secondary} border-2 ${colors.border} shadow-lg`}>
         <CardHeader className="pb-4">
           <div className="flex items-center justify-between">
             <CardTitle className={`text-2xl font-bold ${colors.text} flex items-center gap-2`}>
               <Factory className="h-6 w-6" />
-              {lineKey.replace("linha", "Linha ").toUpperCase()}
+              {data.name.toUpperCase()}
             </CardTitle>
             <Badge className={`${colors.primary} text-white text-lg px-3 py-1`}>{percentage}%</Badge>
           </div>
-          <CardDescription className="text-lg font-semibold text-gray-700">{lineModels[lineKey].model}</CardDescription>
+          <CardDescription className="text-lg font-semibold text-gray-700">{lineModels[data.name as keyof typeof lineModels]?.model}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
@@ -231,14 +188,7 @@ export default function ProductionMonitoring() {
               <div className="text-sm text-gray-600">Meta</div>
             </div>
           </div>
-
-          <div className="w-full bg-gray-200 rounded-full h-4">
-            <div
-              className={`h-4 rounded-full ${colors.primary} transition-all duration-300`}
-              style={{ width: `${Math.min(percentage, 100)}%` }}
-            ></div>
-          </div>
-
+          <Progress value={percentage} />
           <div className="grid grid-cols-2 gap-4 pt-2">
             <div className="text-center">
               <div className="text-2xl font-bold text-blue-600">{productsInProduction}</div>
@@ -251,13 +201,14 @@ export default function ProductionMonitoring() {
           </div>
         </CardContent>
       </Card>
-    )
-  }
-
+    );
+  };
+  
   if (isLoading && lines.length === 0) {
     return (
       <div className="min-h-screen flex items-center justify-center p-4">
         <Loader2 className="h-10 w-10 animate-spin text-blue-500" />
+        <p className="ml-4 text-lg">Carregando dados do sistema...</p>
       </div>
     );
   }
@@ -279,13 +230,20 @@ export default function ProductionMonitoring() {
       </div>
     )
   }
-
+  
   return (
     <div className="min-h-screen bg-gray-50 p-4">
       <div className="max-w-7xl mx-auto">
-        <div className="mb-6">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Sistema de Monitoramento de Produção</h1>
-          <p className="text-gray-600">Linha de Produção - Com Dados Reais Integrados</p>
+        <div className="mb-6 flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">Sistema de Monitoramento de Produção</h1>
+            <p className="text-gray-600">Linha de Produção</p>
+          </div>
+          <img
+            src="/cropped-hotsat-logo.png"
+            alt="Hotsat Logo"
+            className="h-16 w-auto"
+          />
         </div>
 
         <Tabs value={activeLine} onValueChange={setActiveLine} className="w-full">
@@ -337,40 +295,28 @@ export default function ProductionMonitoring() {
             )}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {lines.map((line) => (
-                <LineCard
-                  key={line.id}
-                  lineKey={`linha${line.id}`}
-                  data={line}
-                  colors={lineColors[line.name]}
-                />
+                <LineCard key={line.id} data={line} />
               ))}
             </div>
           </TabsContent>
 
           <TabsContent value="falhas" className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
-              {Object.entries(getDowntimeByLine()).map(([line, downtime]) => {
-                const colors = lineColors[line] || { primary: "bg-gray-600", secondary: "bg-gray-100", text: "text-gray-600", border: "border-gray-600" }
-                const openFailures = failures.filter((f) => {
-                  const failureLine = lines.find(l => l.id === f.lineId)?.name;
-                  return failureLine === line && f.status === "open";
-                }).length
+              {Object.entries(getDowntimeByLine()).map(([lineName, downtime]) => {
+                const colors = lineColors[lineName] || { primary: "bg-gray-600", secondary: "bg-gray-100", text: "text-gray-600", border: "border-gray-600" };
+                const openFailures = failures.filter(f => lines.find(l => l.id === f.lineId)?.name === lineName && f.status === "open").length;
                 return (
-                  <Card key={line} className={`${colors.secondary} border-2 ${colors.border}`}>
+                  <Card key={lineName} className={`${colors.secondary} border-2 ${colors.border}`}>
                     <CardHeader className="pb-2">
                       <CardTitle className={`text-lg font-bold ${colors.text} flex items-center gap-2`}>
                         <Factory className="h-5 w-5" />
-                        {line}
+                        {lineName}
                       </CardTitle>
                     </CardHeader>
                     <CardContent>
                       <div className={`text-2xl font-bold ${colors.text} mb-1`}>{formatDuration(downtime)}</div>
                       <div className="text-sm text-gray-600 mb-2">Tempo Parado Hoje</div>
-                      {openFailures > 0 && (
-                        <Badge variant="destructive" className="text-xs">
-                          {openFailures} Falha{openFailures > 1 ? "s" : ""} Aberta{openFailures > 1 ? "s" : ""}
-                        </Badge>
-                      )}
+                      {openFailures > 0 && (<Badge variant="destructive" className="text-xs">{openFailures} Falha{openFailures > 1 ? "s" : ""} Aberta{openFailures > 1 ? "s" : ""}</Badge>)}
                     </CardContent>
                   </Card>
                 )
@@ -442,20 +388,13 @@ export default function ProductionMonitoring() {
             </Card>
           </TabsContent>
 
-          {lines.map((line) => {
-            const lineKey = `linha${line.id}`;
-            const lineData = getProductionData(lineKey);
-            const lineColorsData = lineColors[line.name];
-            
-            if (!lineData) return null;
-
+          {lines.map((lineData) => {
+            const lineKey = `linha${lineData.id}`;
             const completionPercentage = lineData.targetProduction > 0 ? Math.round((lineData.currentProduction / lineData.targetProduction) * 100) : 0;
             const isLineSavingGoal = isSavingGoal[lineKey];
-            const lineSaveSuccess = saveSuccess[lineKey];
-            const lineSaveError = saveError[lineKey];
 
             return (
-              <TabsContent key={line.id} value={lineKey} className="space-y-6">
+              <TabsContent key={lineData.id} value={lineKey} className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                   <Card className="border-l-4 border-l-blue-500">
                     <CardHeader className="pb-3">
@@ -488,7 +427,7 @@ export default function ProductionMonitoring() {
                           onChange={(e) => setDailyGoals(prev => ({ ...prev, [lineKey]: e.target.value }))}
                           className="w-24 h-8 text-sm"
                           min="1"
-                          aria-label={`Nova meta para ${line.name}`}
+                          aria-label={`Nova meta para ${lineData.name}`}
                         />
                         <Button
                           size="sm"
@@ -499,8 +438,6 @@ export default function ProductionMonitoring() {
                         >
                           {isLineSavingGoal ? <Loader2 className="animate-spin h-4 w-4" /> : "Salvar"}
                         </Button>
-                        {lineSaveSuccess && <CheckCircle className="h-4 w-4 text-green-600" />}
-                        {lineSaveError && <XCircle className="h-4 w-4 text-red-600" />}
                       </div>
                     </CardContent>
                   </Card>
@@ -526,8 +463,8 @@ export default function ProductionMonitoring() {
                       </CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <div className="text-2xl font-bold text-purple-600 mb-2">{lineModels[line.name].model}</div>
-                      <p className="text-sm text-gray-600">{lineModels[line.name].description}</p>
+                      <div className="text-2xl font-bold text-purple-600 mb-2">{lineModels[lineData.name as keyof typeof lineModels]?.model}</div>
+                      <p className="text-sm text-gray-600">{lineModels[lineData.name as keyof typeof lineModels]?.description}</p>
                     </CardContent>
                   </Card>
                 </div>
@@ -554,7 +491,7 @@ export default function ProductionMonitoring() {
                       <TableBody>
                         {lineData.products.map((product) => (
                           <EnhancedProductRow
-                            key={product.serialNumber}
+                            key={product.id}
                             product={product}
                             getStageStatus={getStageStatus}
                             getStageColor={getStageColor}
